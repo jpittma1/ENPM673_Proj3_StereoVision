@@ -15,9 +15,9 @@
 from functions import *
 
 #####-------SELECT DESIRED DATASET-----------###########
-# dataset_number = 1  #curule
+dataset_number = 1  #curule
 # dataset_number = 2  #octagon
-dataset_number = 3  #pendulum
+# dataset_number = 3  #pendulum
 #######################################################
 
 #K matrixes and baselines from calib.txt files
