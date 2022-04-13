@@ -14,34 +14,18 @@
 #********************************************
 from functions import *
 
-# path1 = './curule/'
-# path2 = './octagon/'
-# path3 = './pentagon/'
-
-# print("Converting provided images into a video...")
-# night_drive_video=convertImagesToMovie(path)
-
-# thresHold=180
-# start=1 #start video on frame 1
-# vid=cv2.VideoCapture('night_drive.avi')
-# vid.set(1,start)
-# size = vid.shape
-
-# fourcc = cv2.VideoWriter_fourcc(*'XVID')
-# fps_out = 1
-# videoname_1=('jpittma1_proj3')
-# out1 = cv2.VideoWriter(str(videoname_1)+".avi", fourcc, fps_out, size)
-
-dataset_number = 1  #curule
+#####-------SELECT DESIRED DATASET-----------###########
+# dataset_number = 1  #curule
 # dataset_number = 2  #octagon
-# dataset_number = 3  #pendulum
+dataset_number = 3  #pendulum
+#######################################################
 
 #K matrixes and baselines from calib.txt files
 if dataset_number == 1: #curule
     print("Using 'curule' dataset...")
     K1 = np.array([[1758.23, 0, 977.42], [0, 1758.23, 552.15], [0, 0, 1]])
     K2 = np.array([[1758.23, 0, 977.42], [0, 1758.23, 552.15], [0, 0, 1]])
-    baseline=88.39
+    baseline = 88.39  #From calib.txt file
     f = K1[0,0]
     folder_name = './curule/'
 
@@ -49,7 +33,7 @@ elif dataset_number == 2:   #octagon
     print("Using 'octagon' dataset...")
     K1 = np.array([[1742.11, 0, 804.90], [0, 1742.11, 541.22], [0, 0, 1]])
     K2 = np.array([[1742.11, 0, 804.90], [0, 1742.11, 541.22], [0, 0, 1]])
-    baseline=221.76
+    baseline = 221.76 #From calib.txt file
     f = K1[0,0]
     folder_name = './octagon/'
 
@@ -57,7 +41,7 @@ elif dataset_number == 3:   #pendulum
     print("Using 'pendulum' dataset...")
     K1 = np.array([[1729.05, 0, -364.24], [0, 1729.05, 552.22], [0, 0, 1]])
     K2 = np.array([[1729.05, 0, -364.24], [0, 1729.05, 552.22], [0, 0, 1]])
-    baseline=537.75
+    baseline = 537.75 #From calib.txt file
     f = K1[0,0]
     folder_name = './pendulum/'
 
@@ -121,10 +105,7 @@ rot = np.identity(3)
 tran = np.zeros((3,1))
 for i in range(len(pts3D_4)):
     pts3D = pts3D_4[i]
-    pts3D = pts3D/pts3D[3, :]
-    # x = pts3D[0,:]
-    # y = pts3D[1, :]
-    # z = pts3D[2, :]    
+    pts3D = pts3D/pts3D[3, :] 
 
     ##Make sure the Z values are positive
     count2.append(getPositiveCount(pts3D, Rotation[i], Translation[i]))
@@ -145,57 +126,154 @@ idx = np.intersect1d(np.where(count1 > count_thresh), np.where(count2 > count_th
 
 rot_best = Rotation[idx[0]]
 trans_best = Translation[idx[0]]
-X = pts3D_4[idx[0]]
-X = X/X[3,:]
+# X = pts3D_4[idx[0]]
+# X = X/X[3,:]
 
-print("Estimated Rotation and Translation as ", rot_best)
+print("Estimated Rotation: ", rot_best)
 print("Estimated translation: ",trans_best)
 
 cv2.destroyAllWindows()
+print("Calibration Complete.")
+print("######################")
 
+################################################################
 '''STEP 2: Rectification'''
+print("Rectifying the Epipolar Lines and plotting on Images...")
 ###--Solve for Homography Matrixes---###
 set1, set2 = matched_pairs_inliers[:,0:2], matched_pairs_inliers[:,2:4]
 
-##--Draw Unrectified Epipolar Lines on Images--###
-# lines1, lines2 = getEpipolarLines(set1, set2, Fundamental_Matrix, image0, image1, "epipolarLines_unrectified.jpg", False)
+##--Draw Unrectified Epipolar Lines and Feature Points on Images--###
+lines1, lines2, result_unrec = getEpipolarLines(set1, set2, Fundamental_Matrix, image0, image1, False)
 
+###---Make Images showing Rectified Epipolar Lines--_###
+if dataset_number==1:
+    cv2.imwrite("epipolarLines_crule_unrectified.jpg", result_unrec)
+elif dataset_number==2:
+    cv2.imwrite("epipolarLines_octagon_unrectified.jpg", result_unrec)
+elif dataset_number==3:
+    cv2.imwrite("epipolarLines_pendulum_unrectified.jpg", result_unrec)
 
+####----Solve for Homography Matrixes---###
 h1, w1 = image0.shape[:2]
 h2, w2 = image1.shape[:2]
-_, H1, H2 = cv2.stereoRectifyUncalibrated(np.float32(set1), np.float32(set2), F_best, imgSize=(w1, h1))
-print("Estimated H1 and H2 as", H1, H2)
-
+_, H1, H2 = cv2.stereoRectifyUncalibrated(np.float32(set1), np.float32(set2), Fundamental_Matrix, imgSize=(w1, h1))
+print("Estimated H1 is", H1)
+print("Estimated H2 is", H2)
 
 ###--Warp and Transform Images---
-img1_rectified = cv2.warpPerspective(image0, H1, (w1, h1))
-img2_rectified = cv2.warpPerspective(image1, H2, (w2, h2))
+img1_rect = cv2.warpPerspective(image0, H1, (w1, h1))
+img2_rect = cv2.warpPerspective(image1, H2, (w2, h2))
 
-set1_rectified = cv2.perspectiveTransform(set1.reshape(-1, 1, 2), H1).reshape(-1,2)
-set2_rectified = cv2.perspectiveTransform(set2.reshape(-1, 1, 2), H2).reshape(-1,2)
+set1_rect = cv2.perspectiveTransform(set1.reshape(-1, 1, 2), H1).reshape(-1,2)
+set2_rect = cv2.perspectiveTransform(set2.reshape(-1, 1, 2), H2).reshape(-1,2)
 
 ###--Solve for Rectified Fundamental Matrix---###
-img1_rectified_draw = img1_rectified.copy()
-img2_rectified_draw = img2_rectified.copy()
-
 H2_T_inv =  np.linalg.inv(H2.T)
 H1_inv = np.linalg.inv(H1)
-F_rectified = np.dot(H2_T_inv, np.dot(F_best, H1_inv))
+F_rectified = np.dot(H2_T_inv, np.dot(Fundamental_Matrix, H1_inv))
 
 
-##---Draw Rectified Epipolar lines---###
-lines1_rectified, lines2_recrified = getEpipolarLines(set1_rectified, set2_rectified, F_rectified, img1_rectified, img2_rectified, "../Results/RectifiedEpilines_" + str(dataset_number)+ ".png", True)
+##---Draw Rectified Epipolar lines and Feature Points---###
+lines1_rectified, lines2_recrified, result_rec = getEpipolarLines(set1_rect, set2_rect, F_rectified, img1_rect, img2_rect, True)
 
-
-###---Make Images showing SIFT matches connecting images--_###
+###---Make Images showing Rectified Epipolar Lines--_###
 if dataset_number==1:
-    showMatchesOnImages(image0, image1, matched_pairs, [255,0,0], "curule_rectified.jpg")
+    cv2.imwrite("epipolarLines_crule_rectified.jpg", result_rec)
 elif dataset_number==2:
-    showMatchesOnImages(image0, image1, matched_pairs, [255,0,0], "octagon_rectified.jpg")
+    cv2.imwrite("epipolarLines_octagon_rectified.jpg", result_rec)
 elif dataset_number==3:
-    showMatchesOnImages(image0, image1, matched_pairs, [255,0,0], "pendulum_rectified.jpg")
+    cv2.imwrite("epipolarLines_pendulum_rectified.jpg", result_rec)
 
 cv2.destroyAllWindows()
-'''STEP 3: Compute Depth Image'''
+print("Rectification Complete.")
+print("######################")
+
+################################################################
+'''STEP 3: Correspondance'''
+print("Using SSD for calculating the disparity...")
+
+###---Convert to Grayscale--_####
+gray1 = cv2.cvtColor(img1_rect,cv2.COLOR_BGR2GRAY)
+gray2 = cv2.cvtColor(img2_rect,cv2.COLOR_BGR2GRAY)
+
+disparities = 15 # window size of image 2
+block = 5       # pixel size of block in image 1
+
+height, width = gray1.shape
+disparity_img = np.zeros(shape = (height,width))
+
+start = timeit.default_timer()
+
+###---Apply Matching Windows concept with SSD---###
+#Computing the Disparity Map by comparing matches along epipolar lines of the two images using SSD
+for i in range(block, gray1.shape[0] - block - 1):
+    for j in range(block + disparities, gray1.shape[1] - block - 1):
+        ssd = np.empty([disparities, 1])
+        l = gray1[(i - block):(i + block), (j - block):(j + block)]
+        height, width = l.shape
+        for d in range(0, disparities):
+            r = gray2[(i - block):(i + block), (j - d - block):(j - d + block)]
+            ssd[d] = np.sum((l[:,:]-r[:,:])**2)
+        disparity_img[i, j] = np.argmin(ssd)
+
+stop = timeit.default_timer()
+print("SSD took ", stop-start, " seconds")
+
+print("Disparity (SSD) is: ", ssd)
+# print("Disparity_img is: ", disparity_img)
+
+print("SSD Complete. Rescaling to 0-255...")
+##---Rescale to 0-255
+img_dispair = ((disparity_img/disparity_img.max())*255).astype(np.uint8)
+# cv2.imshow('Disparity grayscale',final_img)
+
+print("Creating heatmap image using 'inferno'...")
+colormap = plt.get_cmap('inferno')
+img_heatmap = (colormap(img_dispair) * 2**16).astype(np.uint16)[:,:,:3]
+img_heatmap = cv2.cvtColor(img_heatmap, cv2.COLOR_RGB2BGR)
+# cv2.imshow('Disparity heatmap', img_heatmap)
+
+if dataset_number==1:
+    cv2.imwrite("Disparity_grayscale_crule.jpg", img_dispair)
+    cv2.imwrite("Disparity_heatmap_crule.jpg", img_heatmap)
+elif dataset_number==2:
+    cv2.imwrite("Disparity_grayscale_octagon.jpg", img_dispair)
+    cv2.imwrite("Disparity_heatmap_octagon.jpg", img_heatmap)
+elif dataset_number==3:
+    cv2.imwrite("Disparity_grayscale_pendulum.jpg", img_dispair)
+    cv2.imwrite("Disparity_heatmap_pendulum.jpg", img_heatmap)
+
+cv2.destroyAllWindows()
+print("Correspondance Complete.")
+print("###########################")
+
+################################################################
+'''STEP 4: Compute Depth Image'''
+print("Computing Depth of Images...")
+
+depth = np.zeros(shape=gray1.shape).astype(float)
+depth[img_dispair > 0] = (f * baseline) / (img_dispair[img_dispair > 0])
+
+# print("Depth is: ", depth)
+
+##---Rescale to 0-255
+img_depth = ((depth/depth.max())*255).astype(np.uint8)
+
+print("Creating heatmap image using 'inferno'...")
+colormap = plt.get_cmap('inferno')
+img_depth_heatmap = (colormap(img_depth) * 2**16).astype(np.uint16)[:,:,:3]
+img_depth_heatmap  = cv2.cvtColor(img_depth_heatmap, cv2.COLOR_RGB2BGR)
+
+if dataset_number==1:
+    cv2.imwrite("Depth_grayscale_crule.jpg", img_depth)
+    cv2.imwrite("Depth_heatmap_crule.jpg", img_depth_heatmap)
+elif dataset_number==2:
+    cv2.imwrite("Depth_grayscale_octagon.jpg", img_depth)
+    cv2.imwrite("Depth_heatmap_octagon.jpg", img_depth_heatmap)
+elif dataset_number==3:
+    cv2.imwrite("Depth_grayscale_pendulum.jpg", img_depth)
+    cv2.imwrite("Depth_heatmap_pendulum.jpg", img_depth_heatmap)
+
+print("Depth Complete. Project 3 Complete.")
 
 cv2.destroyAllWindows()

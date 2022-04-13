@@ -16,56 +16,7 @@ import sys
 import math
 import os
 from os.path import isfile, join
-
-# def convertImagesToMovie(folder):
-#     fps =   3
-#     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-#     videoname=('night_drive')
-#     frames = []
-    
-#     files = [f for f in os.listdir(folder) if isfile(join(folder, f))]
-    
-#     #pictures were not in order, sadly
-#     files.sort(key = lambda x: x[5:-4])
-#     files.sort()
-    
-#     for i in range(len(files)):
-#         filename=folder + files[i]
-#         img = cv2.imread(filename)
-#         height, width, layers = img.shape
-#         size = (width,height)
-#         # cv2.imshow('image', img)
-#         # print("size is ", size)
-#         if img is not None:
-#             frames.append(img)
-#         else:
-#             print("Failed to read")
-    
-#     video = cv2.VideoWriter(str(videoname)+".avi",fourcc, fps, size)
-    
-#     for i in range(len(frames)):
-#         # writing to a image array
-#         video.write(frames[i])
-    
-#     #convert heightxwidth from 370,1224 to 480x640so divisible by 8
-#     cap=cv2.VideoCapture(str(videoname)+".avi")
-#     size = (640, 480)
-#     # size = (1280, 720)
-#     video_new = cv2.VideoWriter(str(videoname)+".avi",fourcc, fps, size)
-    
-#     while True:
-#         ret,frame_new=cap.read()
-#         if ret==True:
-#             b=cv2.resize(frame_new,size,fx=0,fy=0, interpolation = cv2.INTER_CUBIC)
-#             video_new.write(b)
-#         else:
-#             break
-#     video_new.release()
-#     video.release()
-#     cap.release()
-#     cv2.destroyAllWindows()
-    
-#     return video_new
+import timeit
 
 def readImageSet(folder_name, n_images):
     print("Reading images from ", folder_name)
@@ -229,7 +180,7 @@ def showMatchesOnImages(img_1, img_2, matched_pairs, color, file_name):
         for i in range(corners_1_x.shape[0]):
             cv2.line(concat, (corners_1_x[i], corners_1_y[i]), (corners_2_x[i] ,corners_2_y[i]), color, 2)
     
-    cv2.imshow(file_name, concat)
+    # cv2.imshow(file_name, concat)
     cv2.imwrite(file_name, concat)
     # cv2.waitKey() 
     cv2.destroyAllWindows()
@@ -291,3 +242,60 @@ def get3DPoints(K1, K2, inliers, rot_mat, trans_mat):
         pts3D_4.append(X)
         
     return pts3D_4
+
+#solve for X using equation of a line
+def getX(line, y):
+    x = -(line[1]*y + line[2])/line[0]
+    return x
+
+def getEpipolarLines(set1, set2, F, image0, image1, rectified=False):
+    lines1, lines2 = [], []
+    img_epi1 = image0.copy()
+    img_epi2 = image1.copy()
+
+    for i in range(set1.shape[0]):
+        x1 = np.array([set1[i,0], set1[i,1], 1]).reshape(3,1)
+        x2 = np.array([set2[i,0], set2[i,1], 1]).reshape(3,1)
+
+        line2 = np.dot(F, x1)
+        lines2.append(line2)
+
+        line1 = np.dot(F.T, x2)
+        lines1.append(line1)
+
+        #solve for in and max x values based on equation of line
+        if not rectified:
+            y2_min = 0
+            y2_max = image1.shape[0]
+            x2_min = getX(line2, y2_min)
+            x2_max = getX(line2, y2_max)
+
+            y1_min = 0
+            y1_max = image0.shape[0]
+            x1_min = getX(line1, y1_min)
+            x1_max = getX(line1, y1_max)
+        else:
+            x2_min = 0
+            x2_max = image1.shape[1] - 1
+            y2_min = -line2[2]/line2[1]
+            y2_max = -line2[2]/line2[1]
+
+            x1_min = 0
+            x1_max = image0.shape[1] -1
+            y1_min = -line1[2]/line1[1]
+            y1_max = -line1[2]/line1[1]
+
+        #draw circles on images for points connecting epipolar lines
+        cv2.circle(img_epi2, (int(set2[i,0]),int(set2[i,1])), 10, (0,0,255), -1)
+        img_epi2 = cv2.line(img_epi2, (int(x2_min), int(y2_min)), (int(x2_max), int(y2_max)), (255, 0, int(i*2.55)), 2)
+    
+
+        cv2.circle(img_epi1, (int(set1[i,0]),int(set1[i,1])), 10, (0,0,255), -1)
+        img_epi1 = cv2.line(img_epi1, (int(x1_min), int(y1_min)), (int(x1_max), int(y1_max)), (255, 0, int(i*2.55)), 2)
+
+    #Resize images and concatenate back together
+    image_1, image_2 = matchImageSizes([img_epi1, img_epi2])
+    concat = np.concatenate((image_1, image_2), axis = 1)
+    concat = cv2.resize(concat, (1920, 660))
+
+    return lines1, lines2, concat

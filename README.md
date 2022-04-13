@@ -10,16 +10,16 @@ Project 3 for ENPM673 Spring 2022 of UMD-CP PMRO program. Uses concept of Stereo
 #********************************************
 # Requires the following in same folder to run:
 # 1) Python code: "functions.py", "jpittma1_project3.py"
-# 2) folder "adaptive_hist_data" with 25 images
-# 3) "whiteline.mp4" for problem 2
-# 4) "challenge.mp4" for problem 3
+# 2) folder "curule" with 2 images
+# 3) folder "octagon" with 2 images
+# 4) folder "pentagon" with 2 images
 
 #********************************************
 
-# Function modules used: numpy, cv2, scipy, matplotlib.pyplot, sys, math
+# Function modules used: numpy, cv2, scipy, matplotlib.pyplot, sys, math, timeit
 
-# In order to generate videos will need to "toggle" the applicable variable from "False" to "True".
-These are located in "jpittma1_project3.py" on lines XX-XX
-Problem 1a: problem_1a
-Problem 1b: problem_1b
+# In order to pull original images and generate modified images will need to "toggle" the applicable dataset_number by commenting/uncommenting located on lines 18-20 of "jpittma1_project3.py".
+dataset_number = 1  #curule
+dataset_number = 2  #octagon
+dataset_number = 3  #pendulum
 
