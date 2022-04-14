@@ -9,10 +9,10 @@ Project 3 for ENPM673 Spring 2022 of UMD-CP PMRO program. Uses concept of Stereo
 
 #********************************************
 # Requires the following in same folder to run:
-# 1) Python code: "functions.py", "jpittma1_project3.py"
-# 2) folder "curule" with 2 images
-# 3) folder "octagon" with 2 images
-# 4) folder "pentagon" with 2 images
+#1) Python code: "functions.py", "jpittma1_project3.py"
+#2) folder "curule" with 2 images
+#3) folder "octagon" with 2 images
+#4) folder "pentagon" with 2 images
 
 #********************************************
 
